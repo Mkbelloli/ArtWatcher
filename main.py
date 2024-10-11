@@ -1,20 +1,8 @@
-
-
 import cv2
+from ProcessorEngine import ProcessorEngine
 
 CAMERA_INPUT = False
-INPUT_VIDEO = 'output.mp4'
-
-def process_frame(frame):
-    o = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    return o
-"""
- people identification and segmentation
- position per person
- map calibration
- send position to the map
-"""
-
+INPUT_VIDEO = 'videos\\Venice-2-raw.webm'
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -26,9 +14,11 @@ if __name__ == '__main__':
     else:
         cam = cv2.VideoCapture(INPUT_VIDEO)
 
+    engine = ProcessorEngine()
+
     # Get the default frame width and height
-    frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    #frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+    #frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # Define the codec and create VideoWriter object
     #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -37,7 +27,7 @@ if __name__ == '__main__':
     while CAMERA_INPUT or cam.isOpened():
         ret, frame = cam.read()
 
-        out_frame = process_frame(frame)
+        out_frame = engine.process_frame(frame)
 
         #out.write(frame)
         # Display the captured frame

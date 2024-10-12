@@ -1,3 +1,7 @@
+
+import os
+os.add_dll_directory(r'C:\Program Files\NVIDIA GPU Computing Toolkit\cudnn-11.2-v8.1\cuda\bin')
+
 import cv2
 from ProcessorEngine import ProcessorEngine
 

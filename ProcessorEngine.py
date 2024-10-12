@@ -11,7 +11,9 @@ class ProcessorEngine:
         self.__min_confidence_person = PERSON_MIN_CONFIDENCE
 
         self.__net = cv2.dnn.readNetFromDarknet('yolov3.cfg', 'yolov3.weights')
-        self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        #self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        self.__net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
     def __show_people(self, frame, outputs):
         H, W = frame.shape[:2]
@@ -48,7 +50,7 @@ class ProcessorEngine:
         ln = self.__net.getLayerNames()
         ln = [ln[i - 1] for i in self.__net.getUnconnectedOutLayers()]
 
-        blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), swapRB=True, crop=False)
+        blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (256, 256), swapRB=True, crop=False)
         self.__net.setInput(blob)
         outputs = self.__net.forward(ln)
         outputs = np.vstack(outputs)

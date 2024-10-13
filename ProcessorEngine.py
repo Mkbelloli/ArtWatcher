@@ -4,9 +4,12 @@ import numpy as np
 
 PERSON_CLASSID = 0
 PERSON_BOX_COLOR = (150,150,0)
+PERSON_POINT_COLOR = (250,250, 0)
+MAP_LINE_COLOR = (0, 0, 250)
+MAP_ANCHOR_COLOR = (0, 0, 250)
 class ProcessorEngine:
 
-    def __init__(self, SHOW_PEOPLE_BOX= True, PERSON_MIN_CONFIDENCE=0.9):
+    def __init__(self, SHOW_PEOPLE_BOX= True, PERSON_MIN_CONFIDENCE=0.7):
         self.__show_people_box = SHOW_PEOPLE_BOX
         self.__min_confidence_person = PERSON_MIN_CONFIDENCE
 
@@ -15,8 +18,33 @@ class ProcessorEngine:
         self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
         self.__net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
+    def __draw_map_on_frame(self, frame):
+        cv2.line(frame, (118, 287), (790, 287), MAP_LINE_COLOR, 1)
+        cv2.line(frame, (5, 317), (118, 287), MAP_LINE_COLOR, 1)
+        cv2.line(frame, (957, 334), (790, 287), MAP_LINE_COLOR, 1)
+
+        cv2.line(frame, (5, 535), (955, 535), MAP_LINE_COLOR, 1)
+        cv2.line(frame, (957, 334), (955, 535), MAP_LINE_COLOR, 1)
+        cv2.line(frame, (5, 317), (5, 535), MAP_LINE_COLOR, 1)
+
+        return frame
+
+    def __draw_map_anchors(self, frame):
+        cv2.circle(frame, center=(118, 287), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+        cv2.circle(frame, center=(790, 287), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+        cv2.circle(frame, center=(5, 317), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+        cv2.circle(frame, center=(957, 334), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+
+        cv2.circle(frame, center=(5, 535), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+        cv2.circle(frame, center=(955, 535), radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
+
+        return frame
+
     def __show_people(self, frame, outputs):
         H, W = frame.shape[:2]
+
+        print(H)
+        print(W)
 
         boxes = []
         confidences = []
@@ -44,6 +72,7 @@ class ProcessorEngine:
                 (w, h) = (boxes[i][2], boxes[i][3])
                 color = PERSON_BOX_COLOR
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                cv2.circle(frame, (x+int(w/2), y+h), 5, PERSON_POINT_COLOR, cv2.FILLED)
         return frame
     def get_people(self, frame):
 
@@ -57,7 +86,8 @@ class ProcessorEngine:
 
         if self.__show_people_box:
             frame = self.__show_people(frame, outputs)
-
+            frame = self.__draw_map_on_frame(frame)
+            frame = self.__draw_map_anchors(frame)
         return outputs, frame
 
     def process_frame(self, frame):

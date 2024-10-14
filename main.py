@@ -2,6 +2,8 @@
 import os
 import time
 
+import numpy as np
+
 os.add_dll_directory(r'C:\Program Files\NVIDIA GPU Computing Toolkit\cudnn-11.2-v8.1\cuda\bin')
 
 import cv2
@@ -37,6 +39,7 @@ if __name__ == '__main__':
         cam = cv2.VideoCapture(INPUT_VIDEO)
 
     engine = ProcessorEngine()
+    engine.load_map( np.array([(118, 287), (790, 287), (957, 334), (955, 535), (5, 535), (5, 317)  ]))
 
     # Get the default frame width and height
     #frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))

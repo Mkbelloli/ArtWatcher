@@ -12,10 +12,10 @@ MAP_ANCHOR_COLOR = (0, 0, 250)
 
 class ProcessorEngine:
 
-    def __init__(self, show_people_box = True, persone_min_confidence=0.7, track_on_map=True):
+    def __init__(self, show_reference_lines = True, persone_min_confidence=0.7, track_on_map=True):
 
         # flag to define behavior
-        self.__show_people_box = show_people_box
+        self.__show_reference_lines = show_reference_lines
         self.__min_confidence_person = persone_min_confidence
         self.__track_on_map = track_on_map
 
@@ -372,7 +372,7 @@ class ProcessorEngine:
                     # send position to UI server
                     self.__trace_point(people['name'], new_point[0], new_point[1])
 
-        if self.__show_people_box: # TODO: mettere un flag sulle linee e non solo su people
+        if self.__show_reference_lines: 
 
             # show box around people
             frame = self.__show_people(frame, people_boxes)

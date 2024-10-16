@@ -11,31 +11,51 @@ MAP_ANCHOR_COLOR = (0, 0, 250)
 
 class ProcessorEngine:
 
-    def __init__(self, SHOW_PEOPLE_BOX= True, PERSON_MIN_CONFIDENCE=0.7, track_on_map=True):
-        self.__show_people_box = SHOW_PEOPLE_BOX
-        self.__min_confidence_person = PERSON_MIN_CONFIDENCE
+    def __init__(self, show_people_box = True, persone_min_confidence=0.7, track_on_map=True):
+
+        # flag to define behavior
+        self.__show_people_box = show_people_box
+        self.__min_confidence_person = persone_min_confidence
         self.__track_on_map = track_on_map
 
+        # YOLOv3 for object identification
         self.__net = cv2.dnn.readNetFromDarknet('yolov3.cfg', 'yolov3.weights')
-        #self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
         self.__net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
         self.__net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
+        # points to design a map
         self.__map_points = []
+
+        # points for homografy
         self.__camera_map_points = []
         self.__real_map_points = []
         self.__H = None
 
+        # sequential frames for time analysis
         self.__curr_frame = None
         self.__prev_frame = None
 
+        # socket to send data
         self.__client_socket = None
+
+        # create the socket to send data
         if self.__track_on_map:
             self.__client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__client_socket.connect(('127.0.0.1', 65432))
 
+        # dictionary of identified people
         self.__people_dict = {}
 
     def __insert_person_info(self, name, map_point, box, key_points):
+        """
+        Insert person info in dictionary
+        :param name: persona user or id
+        :param map_point: point in the map (in pixel)
+        :param box: box around the person (x, y, w, h)
+        :param key_points: key points related to the person
+        :return:
+        """
+
         self.__people_dict[name]= { 'name': name,
                                     'map_point': map_point,
                                     'box': box,
@@ -43,7 +63,18 @@ class ProcessorEngine:
                                     'missing_frame': 0}
         print(f"Inserito {name}")
 
+# mainly splitted for debug
+#TODO merge edit and add/insert
     def __edit_person_info(self, name, map_point, box, key_points):
+        """
+                Edit person info in dictionary
+                :param name: persona user or id
+                :param map_point: point in the map (in pixel)
+                :param box: box around the person (x, y, w, h)
+                :param key_points: key points related to the person
+                :return:
+                """
+
         self.__people_dict[name]= { 'name': name,
                                     'map_point': map_point,
                                     'box': box,
@@ -52,162 +83,264 @@ class ProcessorEngine:
         print(f"Aggiornato {name}")
 
     def __get_people_boxes(self):
+        """
+        return boxes for each stored person object
+        :return: array of boxes (x, y, w, h)
+        """
         boxes = [x['box'] for x in  self.__people_dict.values()]
         return boxes
 
     def __get_people(self, query_box):
+        """
+        return best people object according input query
+        :param query_box: input query to find best object
+        :return: best info object or None if not present
+        (no object satisfies input query)
+        """
 
         if self.__prev_frame is None or \
             len(self.__people_dict)==0:
-            print('Fase iniziale senza dati')
+            #print('Fase iniziale senza dati')
             return -1, None
 
+        # gray transform
         prev_gray = cv2.cvtColor(self.__prev_frame, cv2.COLOR_BGR2GRAY)
         next_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
 
-        # 1. Seleziona i punti di interesse all'interno del bounding box nel primo fotogramma
-        x, y, w, h = query_box
-        roi = prev_gray[int(y):int(y + h), int(x):int(x + w)]  # Region of Interest (ROI) per il box
-        prev_points = cv2.goodFeaturesToTrack(roi, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
-        if prev_points is not None:
-            # Aggiusta le coordinate dei punti rispetto all'intera immagine
-            prev_points += np.array([[x, y]])
-        else:
-            # prev_points is None:
-            print('prev_point a None')
-            return -1, None  # Nessun punto da tracciare, restituisce None
+        # get interest point in frame in bounding box defined by input query box in prev frame
+        # prev frame (t-1) is used since the full analysis of movement is performed on the current one
+        q_x, q_y, q_w, q_h = query_box
+        prev_points = cv2.goodFeaturesToTrack(prev_gray[int(q_y):int(q_y + q_h), int(q_x):int(q_x + q_w)]
+                                              , maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
 
-        # 2. Traccia i punti nel secondo fotogramma usando l'Optical Flow
+        if prev_points is not None:
+            # coords update according base point (q_x, q_y) in query
+            prev_points += np.array([[q_x, q_y]])
+        else:
+            # no key points, so no best person identified
+            #print('prev_point a None')
+            return -1, None
+
+        # find next key point in the second frame using Lucas-Kanade OpticalFlow
         next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
 
-        # Filtra i punti validi
-        good_prev = prev_points[status == 1]
-        good_next = next_points[status == 1]
+        # get only valid points
+        valid_prev_points = prev_points[status == 1]
+        valid_next_points = next_points[status == 1]
 
-        # 3. Conta quanti punti finiscono all'interno di ciascuno dei box vicini nel secondo fotogramma
+        # count how many valid next points (next position) are contained in people boxes
         counts = []
-        people_boxes = self.__get_people_boxes()
+        people_boxes = self.__get_people_boxes() # get all boxes for stored people objects
         for next_box in people_boxes:
             x, y, w, h = next_box
             inside_box_count = 0
-            for point in good_next:
-                # Verifica se il punto tracciato è all'interno del bounding box
+            for point in valid_next_points:
+                # verify if any valid next point is in the current box
                 if x <= point[0] <= x + w and y <= point[1] <= y + h:
                     inside_box_count += 1
             counts.append(inside_box_count)
 
-        # 4. Trova il box con il maggior numero di punti tracciati dentro
+        # find the person object with the highest count
         best_match_index = np.argmax(counts)
         best_match_obj = list(iter(self.__people_dict.values()))[best_match_index]
         best_match_count = counts[best_match_index]
 
         if best_match_count == 0:
-            print('best match count a zero')
+            # there are no boxes that contain at least one key point.
             return -1, None
 
+        # return best choice obj
         return best_match_count, best_match_obj
 
     def load_mapped_points(self, camera_points, real_points):
+        """
+        load points that map pixel points and physical points to calculate homografy matrix
+        :param camera_points: points from camera (pixel)
+        :param real_points: points from map (meter)
+        :return:
+        """
+
+        # calculate Homography matrix
         self.__real_map_points = np.array(real_points)
         self.__camera_map_points = np.array(camera_points)
         self.__H, status = cv2.findHomography(self.__camera_map_points, self.__real_map_points)
 
     def load_map(self, points):
+        """
+        load points to draw maps on the frame
+        :param points: map points
+        :return:
+        """
+
         self.__map_points = points
 
     def __draw_map_on_frame(self, frame):
+        """
+        draw map on the frame
+        :param frame: frame to be used
+        :return: modified frame
+        """
+
+        # used loaded map points to draw the map
         for pi in range(len(self.__map_points)-1, -1, -1):
             cv2.line(frame, self.__map_points[pi], self.__map_points[pi-1], MAP_LINE_COLOR, 1)
+
         return frame
 
     def __draw_map_anchors(self, frame):
+        """
+        draw map anchors on the frame
+        :param frame: frame to be used
+        :return: modified frame
+        """
+
+        # used loaded map points to draw the anchors
         for anch_p in self.__map_points:
             cv2.circle(frame, center=anch_p, radius=5, color=MAP_ANCHOR_COLOR, thickness=cv2.FILLED)
         return frame
 
     def __show_people(self, frame, people_boxes):
+        """
+        draw boxes for each identified person in the frame
+        :param frame: frame to be used
+        :param people_boxes: boxes to be drawn
+        :return: modified frame
+        """
+
+        # used boxes for stored info object
         for box in people_boxes:
             color = PERSON_BOX_COLOR
             cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[0]+box[2]), int(box[1]+box[3])), color, 1)
             cv2.circle(frame, (int(box[0]+box[2]/2), int(box[1]+box[3])), 5, PERSON_POINT_COLOR, cv2.FILLED)
+
         return frame
 
     def __trace_point(self, name, x, y):
-        H = self.__H
-        transformed_point = cv2.perspectiveTransform(np.array([[[x, y]]]), H)
+        """
+        sent new coordinates to the UI server
+        :param name: person name or id to be sent
+        :param x: x coord of the person
+        :param y: y coord of the person
+        :return:
+        """
 
-        # Dividi per il terzo elemento (fattore di scala w) per ottenere le coordinate finali
-        x_prime = transformed_point[0][0][0] #/ transformed_point[2]
-        y_prime = transformed_point[0][0][1] #/ transformed_point[2]
-        message = f"{name} {x_prime} {y_prime} <END>"
+        # transform coords using homography matrix
+        transformed_point = cv2.perspectiveTransform(np.array([[[x, y]]]), self.__H)
+
+        # local temporary variables for a easier analysis
+        x_map = transformed_point[0][0][0]
+        y_map = transformed_point[0][0][1]
+
+        # send updating coordinates for <name> person object
+        message = f"{name} {x_map} {y_map} <END>"
         print(f"Sent: {message}")
         self.__client_socket.send(message.encode('utf-8'))
 
     def get_people_from_frame(self, frame):
+        """
+        get people in a frame
+        :param frame: frame to be used
+        :return: list of identified boxes
+        """
+
+        # YOLO object identification
         H, W = frame.shape[:2]
         ln = self.__net.getLayerNames()
         ln = [ln[i - 1] for i in self.__net.getUnconnectedOutLayers()]
-
         blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), swapRB=True, crop=False)
         self.__net.setInput(blob)
         outputs = self.__net.forward(ln)
         outputs = np.vstack(outputs)
-        boxes = []
-        confidences = []
-        map_polygon = np.array(self.__map_points, dtype=np.int32)
+
+        boxes = []           # store boxes
+        confidences = []     # confidence per box
+        map_polygon = np.array(self.__map_points, dtype=np.int32) # map polygon
+
         for output in outputs:
-            scores = output[5:]
-            classID = np.argmax(scores)
+
+            confidence_array = output[5:]
+            classID = np.argmax(confidence_array)
+
             x, y, w, h = output[:4] * np.array([W, H, W, H])
+            # x e y are related to center of the box
+            # since box reference is related to the upper left corner
+            # so it needs to change coords
             x = int(x-w/2)
             y = int(y-h/2)
+
+            # check of the base point of the box
             if classID != PERSON_CLASSID or \
-               scores[classID] < self.__min_confidence_person or \
-               cv2.pointPolygonTest(map_polygon, (int(x), int(y + h / 2)), False) < 0:
+               confidence_array[classID] < self.__min_confidence_person or \
+               cv2.pointPolygonTest(map_polygon, (int(x + (w / 2)), int(y + h)), False) < 0:
+                # continue if:
+                #  - not a person
+                #  - low confidence in identification
+                #  - base point outside the map
                 continue
 
+            # append box and confidence for the filtered box
             boxes.append([int(x), int(y), int(w), int(h)])
-            confidences.append(scores[classID])
+            confidences.append(confidence_array[classID])
 
+        # filter and reduce the number of overlapping bounding boxes generated.
         indices = cv2.dnn.NMSBoxes(boxes, confidences, self.__min_confidence_person, self.__min_confidence_person - 0.1)
+
+        # get people boxes
         people_boxes = []
         if len(indices) > 0:
             for i in indices.flatten():
                 # x,y,w,h
                 people_boxes.append((boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]))
-                """
-                color = PERSON_BOX_COLOR
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.circle(frame, (int(x + w / 2), int(y + h)), 5, PERSON_POINT_COLOR, cv2.FILLED)
-"""
-        return people_boxes, frame
+
+
+        return people_boxes
 
     def process_frame(self, frame):
+        """
+        full process of the frame
+        :param frame: frame to be analyzed
+        :return:
+        """
+
+        # save in internal variables current and previous frame
         self.__prev_frame = self.__curr_frame
-        self.__curr_frame = frame # cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        people_boxes, frame = self.get_people_from_frame(self.__curr_frame)
+        self.__curr_frame = frame
+
+        # get boxes from current frame
+        people_boxes = self.get_people_from_frame(self.__curr_frame)
 
         if self.__prev_frame is None:
-            return frame# jump first run, I need both
+            # for the first frame (prev_frame is None) continue
+            return frame
 
+        # get gray version of the frames
         prev_gray = cv2.cvtColor(self.__prev_frame, cv2.COLOR_BGR2GRAY)
         next_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
 
+        # list on identified boxes
         for pbox in people_boxes:
+
+            # get person object for current box
             score, people = self.__get_people(pbox)
 
             if people is None:
+                # no object found
+
                 x, y, w, h = pbox
-                x = int(x - (w/2))
-                y = int(y - (h/2))
-                prev_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
-                key_points = cv2.goodFeaturesToTrack(prev_gray[int(y):int(y + h), int(x):int(x + w)], maxCorners=100, qualityLevel=0.3,
+
+                # TODO: sicuro che serva?
+                #x = int(x - (w/2))
+                #y = int(y - (h/2))
+                # prev_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
+
+                # create key points
+                key_points = cv2.goodFeaturesToTrack(next_gray[int(y):int(y + h), int(x):int(x + w)], maxCorners=100, qualityLevel=0.3,
                                                       minDistance=7,
                                                       blockSize=7)
-
                 if not key_points is None:
                     key_points += np.array([[int(x), int(y)]])
 
+                # add new object
                 self.__insert_person_info(str(uuid.uuid4()),
                                           (int(x+w/2),int(y+h)),
                                           pbox,
@@ -217,34 +350,44 @@ class ProcessorEngine:
             prev_points = people['key_points']
             next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
 
-            # Filtra solo i punti che sono stati trovati correttamente
+            # Filter key points correctly identified
             good_prev = prev_points[status == 1]
             good_next = next_points[status == 1]
 
-            # Calcola la media dello spostamento dei punti tracciati
+            # movement identification
             movement = np.mean(good_next - good_prev, axis=0)
 
-            # Verifica se il bounding box nel secondo frame corrisponde
             x_next, y_next, w_next, h_next = pbox
             next_center = np.array([int(x_next + w_next /2), int(y_next + h_next)])
-            x, y, w, h = pbox
+            x, y, w, h = pbox # TODO: da ricalcolare
 
-            # Se il movimento medio dei punti corrisponde alla posizione stimata del box nel secondo frame, abbiamo un match
+            # If the average movement matches the estimated position in the second frame, we have a match.
             if np.linalg.norm(next_center - (np.array([int(x + w/2), int(y+h)]) + movement)) < 50:
 
+                # get key points
                 key_points = cv2.goodFeaturesToTrack(next_gray[y:y + h, x:x + w], maxCorners=100, qualityLevel=0.3,
                                                      minDistance=7,
                                                      blockSize=7)
 
-                new_point = np.array([int(x + w/2), int(y+h)]) + movement
+                # TODO: devo ridefinire secondo il riferimento
+                new_point = np.array([int(x + w/2), int(y+h)]) + movement  # TODO: uso x,y o lo sposto?
+
+                # update position of object already stored
                 self.__edit_person_info(people['name'], new_point,  pbox, key_points)
 
                 if self.__track_on_map:
+                    # send position to UI server
                     self.__trace_point(people['name'], new_point[0], new_point[1])
 
-        if self.__show_people_box:
+        if self.__show_people_box: # TODO: mettere un flag sulle linee e non solo su people
+
+            # show box around people
             frame = self.__show_people(frame, people_boxes)
+
+            # show map
             frame = self.__draw_map_on_frame(frame)
+
+            # show map anchors
             frame = self.__draw_map_anchors(frame)
 
         return frame

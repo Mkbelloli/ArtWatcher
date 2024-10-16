@@ -338,7 +338,7 @@ class ProcessorEngine:
 
             x_next, y_next, w_next, h_next = pbox
             next_center = np.array([int(x_next + w_next /2), int(y_next + h_next)])
-            x, y, w, h = pbox # TODO: da ricalcolare
+            x, y, w, h =  people['box']
 
             # If the average movement matches the estimated position in the second frame, we have a match.
             if np.linalg.norm(next_center - (np.array([int(x + w/2), int(y+h)]) + movement)) < 50:

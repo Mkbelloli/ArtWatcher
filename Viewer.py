@@ -102,7 +102,7 @@ class PeopleTrackingUI:
             server_socket.bind((SERVER_HOST, SERVER_PORT))
             server_socket.listen()
 
-            print(f"Server in ascolto su {HOST}:{PORT}...")
+            print(f"Server in ascolto su {SERVER_HOST}:{SERVER_PORT}...")
 
             while True:
                 conn, addr = server_socket.accept()

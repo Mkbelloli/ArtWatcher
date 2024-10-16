@@ -327,11 +327,6 @@ class ProcessorEngine:
 
                 x, y, w, h = pbox
 
-                # TODO: sicuro che serva?
-                #x = int(x - (w/2))
-                #y = int(y - (h/2))
-                # prev_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
-
                 # create key points
                 key_points = cv2.goodFeaturesToTrack(next_gray[int(y):int(y + h), int(x):int(x + w)], maxCorners=100, qualityLevel=0.3,
                                                       minDistance=7,

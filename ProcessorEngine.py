@@ -47,9 +47,9 @@ class ProcessorEngine:
         # dictionary of identified people
         self.__people_dict = {}
 
-    def __insert_person_info(self, name, map_point, box, key_points):
+    def __store_person_info(self, name, map_point, box, key_points):
         """
-        Insert person info in dictionary
+        store person info in dictionary
         :param name: persona user or id
         :param map_point: point in the map (in pixel)
         :param box: box around the person (x, y, w, h)
@@ -57,31 +57,16 @@ class ProcessorEngine:
         :return:
         """
 
-        self.__people_dict[name]= { 'name': name,
-                                    'map_point': map_point,
-                                    'box': box,
-                                    'key_points': key_points,
-                                    'missing_frame': 0}
-        utils.print_log(f"Inserito {name}")
-
-# mainly splitted for debug
-#TODO merge edit and add/insert
-    def __edit_person_info(self, name, map_point, box, key_points):
-        """
-                Edit person info in dictionary
-                :param name: persona user or id
-                :param map_point: point in the map (in pixel)
-                :param box: box around the person (x, y, w, h)
-                :param key_points: key points related to the person
-                :return:
-                """
+        # log for debugging activities
+        msg = f"Add {name}"
+        if name in self.__people_dict:
+            msg = f"Update {name}"
+        utils.print_log(msg)
 
         self.__people_dict[name]= { 'name': name,
                                     'map_point': map_point,
                                     'box': box,
-                                    'key_points': key_points,
-                                    'missing_frame': 0}
-        utils.print_log(f"Aggiornato {name}")
+                                    'key_points': key_points }
 
     def __get_people_boxes(self):
         """
@@ -335,7 +320,7 @@ class ProcessorEngine:
                     key_points += np.array([[int(x), int(y)]])
 
                 # add new object
-                self.__insert_person_info(str(uuid.uuid4()),
+                self.__store_person_info(str(uuid.uuid4()),
                                           (int(x+w/2),int(y+h)),
                                           pbox,
                                           key_points )
@@ -366,13 +351,13 @@ class ProcessorEngine:
                 new_point = np.array([int(x + w/2), int(y+h)]) + movement
 
                 # update position of object already stored
-                self.__edit_person_info(people['name'], new_point,  pbox, key_points)
+                self.__store_person_info(people['name'], new_point, pbox, key_points)
 
                 if self.__track_on_map:
                     # send position to UI server
                     self.__trace_point(people['name'], new_point[0], new_point[1])
 
-        if self.__show_reference_lines: 
+        if self.__show_reference_lines:
 
             # show box around people
             frame = self.__show_people(frame, people_boxes)

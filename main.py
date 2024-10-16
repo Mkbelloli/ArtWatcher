@@ -39,7 +39,7 @@ if __name__ == '__main__':
         cam = cv2.VideoCapture(INPUT_VIDEO)
 
     engine = ProcessorEngine()
-    engine.load_map( np.array([(118, 287), (790, 287), (957, 334), (955, 535), (5, 535), (5, 317)  ]))
+    engine.load_map( np.array([(118, 287), (790, 287), (957, 334), (957, 535), (5, 535), (5, 317)  ]))
     engine.load_mapped_points( [[118, 287], [790, 287], [957, 334], [5, 317]],
                                [[0, 16], [16, 16], [16, 11.5], [0, 14]])
 

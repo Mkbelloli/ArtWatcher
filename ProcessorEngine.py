@@ -363,8 +363,7 @@ class ProcessorEngine:
                                                      minDistance=7,
                                                      blockSize=7)
 
-                # TODO: devo ridefinire secondo il riferimento
-                new_point = np.array([int(x + w/2), int(y+h)]) + movement  # TODO: uso x,y o lo sposto?
+                new_point = np.array([int(x + w/2), int(y+h)]) + movement
 
                 # update position of object already stored
                 self.__edit_person_info(people['name'], new_point,  pbox, key_points)

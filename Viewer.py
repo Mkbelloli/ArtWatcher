@@ -4,6 +4,7 @@ import threading
 import random
 import time
 from pyglet import shapes
+import utils
 
 PIXEL_PER_METER = 40
 X_MARGIN = 10
@@ -102,13 +103,13 @@ class PeopleTrackingUI:
             server_socket.bind((SERVER_HOST, SERVER_PORT))
             server_socket.listen()
 
-            print(f"Server in ascolto su {SERVER_HOST}:{SERVER_PORT}...")
+            utils.print_log(f"Server in ascolto su {SERVER_HOST}:{SERVER_PORT}...")
 
             while True:
                 conn, addr = server_socket.accept()
                 with conn:
 
-                    print(f"Connesso da {addr}")
+                    utils.print_log(f"Connesso da {addr}")
 
                     # reading received data
                     while True:
@@ -117,7 +118,8 @@ class PeopleTrackingUI:
                         if not data:
                             break
 
-                        #print(f"Received: {data}")
+                        utils.print_log(f"Received: {data}")
+
                         # splitting received data per <END> tag
                         while '<END>' in data:
 
@@ -153,6 +155,6 @@ class PeopleTrackingUI:
 
 
 if __name__ == "__main__":
-
+    utils.activate_logs()
     ui = PeopleTrackingUI(16, 16)
     ui.run()

@@ -2,6 +2,7 @@ import uuid
 import cv2
 import numpy as np
 import socket
+import utils
 
 PERSON_CLASSID = 0
 PERSON_BOX_COLOR = (150,150,0)
@@ -61,7 +62,7 @@ class ProcessorEngine:
                                     'box': box,
                                     'key_points': key_points,
                                     'missing_frame': 0}
-        print(f"Inserito {name}")
+        utils.print_log(f"Inserito {name}")
 
 # mainly splitted for debug
 #TODO merge edit and add/insert
@@ -80,7 +81,7 @@ class ProcessorEngine:
                                     'box': box,
                                     'key_points': key_points,
                                     'missing_frame': 0}
-        print(f"Aggiornato {name}")
+        utils.print_log(f"Aggiornato {name}")
 
     def __get_people_boxes(self):
         """
@@ -100,7 +101,7 @@ class ProcessorEngine:
 
         if self.__prev_frame is None or \
             len(self.__people_dict)==0:
-            #print('Fase iniziale senza dati')
+            utils.print_log('Initialization without data')
             return -1, None
 
         # gray transform
@@ -118,7 +119,6 @@ class ProcessorEngine:
             prev_points += np.array([[q_x, q_y]])
         else:
             # no key points, so no best person identified
-            #print('prev_point a None')
             return -1, None
 
         # find next key point in the second frame using Lucas-Kanade OpticalFlow
@@ -233,7 +233,7 @@ class ProcessorEngine:
 
         # send updating coordinates for <name> person object
         message = f"{name} {x_map} {y_map} <END>"
-        print(f"Sent: {message}")
+        utils.print_log(f"Sent: {message}")
         self.__client_socket.send(message.encode('utf-8'))
 
     def get_people_from_frame(self, frame):
@@ -291,7 +291,6 @@ class ProcessorEngine:
             for i in indices.flatten():
                 # x,y,w,h
                 people_boxes.append((boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]))
-
 
         return people_boxes
 

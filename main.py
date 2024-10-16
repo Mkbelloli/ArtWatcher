@@ -3,6 +3,7 @@ import os
 import time
 
 import numpy as np
+import utils
 
 os.add_dll_directory(r'C:\Program Files\NVIDIA GPU Computing Toolkit\cudnn-11.2-v8.1\cuda\bin')
 
@@ -30,7 +31,9 @@ def click_event(event, x, y, flags, params):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print('Starting Computer Vision Project...')
+
+    utils.activate_logs()
+    utils.print_log('Starting Computer Vision Project...')
 
     # Open the default camera
     if CAMERA_INPUT:

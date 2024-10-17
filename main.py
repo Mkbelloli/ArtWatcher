@@ -16,7 +16,7 @@ INPUT_VIDEO = 'videos\\Venice-2-raw.webm'
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    utils.activate_logs()
+    utils.deactivate_logs()
     utils.print_log('Starting Computer Vision Project...')
 
     # Open the default camera

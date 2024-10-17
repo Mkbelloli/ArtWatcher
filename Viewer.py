@@ -155,6 +155,6 @@ class PeopleTrackingUI:
 
 
 if __name__ == "__main__":
-    utils.activate_logs()
+    utils.deactivate_logs()
     ui = PeopleTrackingUI(16, 16)
     ui.run()

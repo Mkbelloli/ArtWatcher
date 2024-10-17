@@ -338,7 +338,7 @@ class ProcessorEngine:
             prev_points = people['key_points']
 
             next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
-            
+
             # Filter key points correctly identified
             good_prev = prev_points[status == 1]
             good_next = next_points[status == 1]

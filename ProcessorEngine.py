@@ -3,12 +3,15 @@ import cv2
 import numpy as np
 import socket
 import utils
+import time
 
 PERSON_CLASSID = 0
 PERSON_BOX_COLOR = (150,150,0)
 PERSON_POINT_COLOR = (250,250, 0)
 MAP_LINE_COLOR = (0, 0, 250)
 MAP_ANCHOR_COLOR = (0, 0, 250)
+
+IDLE_TIME = 2
 
 class ProcessorEngine:
 
@@ -75,7 +78,9 @@ class ProcessorEngine:
         self.__people_dict[name]= { 'name': name,
                                     'map_point': map_point,
                                     'box': box,
-                                    'key_points': key_points.copy() }
+                                    'key_points': key_points.copy(),
+                                    'last_update': time.time()}
+
 
     def __get_people_boxes(self):
         """
@@ -124,9 +129,11 @@ class ProcessorEngine:
 
         # count how many valid next points (next position) are contained in people boxes
         counts = []
-        people_boxes = self.__get_people_boxes() # get all boxes for stored people objects
-        for next_box in people_boxes:
-            x, y, w, h = next_box
+
+        people_boxes = self.__get_people_boxes()  # get all boxes for stored people objects
+
+        for pbox in people_boxes:
+            x, y, w, h = pbox
             inside_box_count = 0
             for point in valid_next_points:
                 # verify if any valid next point is in the current box
@@ -329,10 +336,14 @@ class ProcessorEngine:
                     key_points += np.array([[int(x), int(y)]])
 
                 # add new object
-                self.__store_person_info(str(uuid.uuid4()),
+                name = str(uuid.uuid4())
+                self.__store_person_info( name,
                                           (int(x+w/2),int(y+h)),
                                           pbox,
                                           key_points )
+                if self.__track_on_map:
+                    # send position to UI server
+                    self.__trace_point(name, x+w/2, y+h)
                 continue
 
             prev_points = people['key_points']

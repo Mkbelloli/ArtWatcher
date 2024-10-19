@@ -36,8 +36,8 @@ class ProcessorEngine:
         self.__H = None
 
         # sequential frames for time analysis
-        self.__curr_frame = None
-        self.__prev_frame = None
+        self.__curr_frame_gray = None
+        self.__prev_frame_gray = None
 
         # socket to send data
         self.__client_socket = None
@@ -93,8 +93,7 @@ class ProcessorEngine:
         return boxes for each stored person object
         :return: array of boxes (x, y, w, h)
         """
-        boxes = [x['box'] for x in  self.__people_dict.values()]
-        return boxes
+        return [x['box'] for x in  self.__people_dict.values()]
 
     def __get_people(self, query_box):
         """
@@ -104,19 +103,15 @@ class ProcessorEngine:
         (no object satisfies input query)
         """
 
-        if self.__prev_frame is None or \
+        if self.__prev_frame_gray is None or \
             len(self.__people_dict)==0:
             utils.print_log('Initialization without data')
             return -1, None
 
-        # gray transform
-        prev_gray = cv2.cvtColor(self.__prev_frame, cv2.COLOR_BGR2GRAY)
-        next_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
-
         # get interest point in frame in bounding box defined by input query box in prev frame
         # prev frame (t-1) is used since the full analysis of movement is performed on the current one
         q_x, q_y, q_w, q_h = query_box
-        prev_points = cv2.goodFeaturesToTrack(prev_gray[int(q_y):int(q_y + q_h), int(q_x):int(q_x + q_w)]
+        prev_points = cv2.goodFeaturesToTrack(self.__prev_frame_gray[int(q_y):int(q_y + q_h), int(q_x):int(q_x + q_w)]
                                               , maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
 
         if prev_points is not None:
@@ -127,7 +122,7 @@ class ProcessorEngine:
             return -1, None
 
         # find next key point in the second frame using Lucas-Kanade OpticalFlow
-        next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
+        next_points, status, err = cv2.calcOpticalFlowPyrLK(self.__prev_frame_gray, self.__curr_frame_gray, prev_points, None)
 
         # get only valid points
         valid_next_points = next_points[status == 1]
@@ -308,19 +303,15 @@ class ProcessorEngine:
         """
 
         # save in internal variables current and previous frame
-        self.__prev_frame = self.__curr_frame.copy() if not self.__curr_frame is None else None
-        self.__curr_frame = frame.copy()
+        self.__prev_frame_gray = self.__curr_frame_gray.copy() if not self.__curr_frame_gray is None else None
+        self.__curr_frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # get boxes from current frame
-        people_boxes = self.get_people_from_frame(self.__curr_frame)
+        people_boxes = self.get_people_from_frame(frame)
 
-        if self.__prev_frame is None:
+        if self.__prev_frame_gray is None:
             # for the first frame (prev_frame is None) continue
             return frame
-
-        # get gray version of the frames
-        prev_gray = cv2.cvtColor(self.__prev_frame, cv2.COLOR_BGR2GRAY)
-        next_gray = cv2.cvtColor(self.__curr_frame, cv2.COLOR_BGR2GRAY)
 
         # list on identified boxes
         for pbox in people_boxes:
@@ -334,7 +325,7 @@ class ProcessorEngine:
                 x, y, w, h = pbox
 
                 # create key points
-                key_points = cv2.goodFeaturesToTrack(next_gray[int(y):int(y + h), int(x):int(x + w)], maxCorners=100, qualityLevel=0.2,
+                key_points = cv2.goodFeaturesToTrack(self.__curr_frame_gray[int(y):int(y + h), int(x):int(x + w)], maxCorners=100, qualityLevel=0.2,
                                                       minDistance=7,
                                                       blockSize=7)
                 if not key_points is None:
@@ -353,7 +344,7 @@ class ProcessorEngine:
 
             prev_points = people['key_points']
 
-            next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
+            next_points, status, err = cv2.calcOpticalFlowPyrLK(self.__prev_frame_gray, self.__curr_frame_gray, prev_points, None)
 
             # Filter key points correctly identified
             good_prev = prev_points[status == 1]
@@ -370,7 +361,7 @@ class ProcessorEngine:
             if np.linalg.norm(next_center - (np.array([int(x + w/2), int(y+h)]) + movement)) < 50:
 
                 # get key points
-                key_points = cv2.goodFeaturesToTrack(next_gray[y_next:y_next + h_next, x_next:x_next + w_next], maxCorners=100, qualityLevel=0.2,
+                key_points = cv2.goodFeaturesToTrack(self.__curr_frame_gray[y_next:y_next + h_next, x_next:x_next + w_next], maxCorners=100, qualityLevel=0.2,
                                                      minDistance=3, blockSize=7)
 
                 new_point = np.array([int(x + w/2), int(y+h)]) + movement

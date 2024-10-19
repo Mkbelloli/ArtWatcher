@@ -81,6 +81,12 @@ class ProcessorEngine:
                                     'key_points': key_points.copy(),
                                     'last_update': time.time()}
 
+        curr_time = time.time()
+        people_to_delete = [k for k, v in self.__people_dict.items() if curr_time - v['last_update'] > IDLE_TIME]
+
+        # Cancella le voci dal dizionario originale
+        for key in people_to_delete:
+            del self.__people_dict[key]
 
     def __get_people_boxes(self):
         """

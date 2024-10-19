@@ -130,7 +130,6 @@ class ProcessorEngine:
         next_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, next_gray, prev_points, None)
 
         # get only valid points
-        valid_prev_points = prev_points[status == 1]
         valid_next_points = next_points[status == 1]
 
         # count how many valid next points (next position) are contained in people boxes

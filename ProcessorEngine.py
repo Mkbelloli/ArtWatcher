@@ -13,6 +13,9 @@ MAP_ANCHOR_COLOR = (0, 0, 250)
 
 IDLE_TIME = 2
 
+SERVER_HOST = '127.0.0.1'
+SERVER_PORT = 65432
+
 class ProcessorEngine:
 
     def __init__(self, show_reference_lines = True, persone_min_confidence=0.7, track_on_map=True):
@@ -45,7 +48,8 @@ class ProcessorEngine:
         # create the socket to send data
         if self.__track_on_map:
             self.__client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.__client_socket.connect(('127.0.0.1', 65432))
+            self.__client_socket.connect((SERVER_HOST, SERVER_PORT))
+            self.__client_socket.setblocking(False)
 
         # dictionary of identified people
         self.__people_dict = {}

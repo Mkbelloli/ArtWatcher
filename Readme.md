@@ -17,6 +17,9 @@ To install the project follow these steps:
 3. Copy Yolo files in base folder
 4. Copy the video in videos folder
 
+ATTENTION: in object tracker there is a os.add_dll_directory call necessary 
+in current CUDA installation, please change it according your environment
+
 ### RUN
 To run this project follow these steps:
 1. run *UI server*: python object_tracker.py

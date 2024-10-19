@@ -19,6 +19,6 @@ To install the project follow these steps:
 
 ### RUN
 To run this project follow these steps:
-1. run *UI server*: python main.py
-2. run *Object Finder*: python Viewer.py
+1. run *UI server*: python object_tracker.py
+2. run *Object Finder*: python viewer_UI.py
 

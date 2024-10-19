@@ -237,7 +237,7 @@ class ProcessorEngine:
         utils.print_log(f"Sent: {message}")
         self.__client_socket.send(message.encode('utf-8'))
 
-    def get_people_from_frame(self, frame):
+    def __get_people_from_frame(self, frame):
         """
         get people in a frame
         :param frame: frame to be used
@@ -307,7 +307,7 @@ class ProcessorEngine:
         self.__curr_frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # get boxes from current frame
-        people_boxes = self.get_people_from_frame(frame)
+        people_boxes = self.__get_people_from_frame(frame)
 
         if self.__prev_frame_gray is None:
             # for the first frame (prev_frame is None) continue
